@@ -1,11 +1,114 @@
 ---
-title: "fpl_exploration"
+title: "Exploration of the FPL Dataset"
+author: "Othmane Mahfoud"
+date: "22/11/2023"
 ---
 
-## Quarto
+# A Visual Exploration of The FPL Dataset
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+Over the next section of this document we will be exploring the [FPL Dataset](https://www.kaggle.com/datasets/joebeachcapital/fantasy-football) from Kaggle.
+
+## Load the Data
+
+First we read the data we carefully stored inside the data folder onto a dataframe using the readr package.
 
 ```{r}
-1 + 1
+
+library(readr)
+
+fpl <- read_csv("data/cleaned_merged_seasons.csv")
 ```
+
+We then have a look at our data to make sure everything was loaded properly
+
+```{r}
+
+head(fpl)
+```
+
+## Data Exploration
+
+Let's have a look at the structure of our data
+
+```{r}
+
+str(fpl)
+```
+
+Now let's look at some summary statistics for our dataset
+
+```{r}
+
+summary(fpl)
+```
+
+Earlier I noticed that there were some null values in the team_x column, let's look at the null values and how they are dispersed across
+
+```{r}
+
+library(dplyr)
+
+fpl |>
+  group_by(season_x) |>
+  summarise_all(~ sum(is.na(.)))
+```
+
+## Data Cleaning
+
+We notice here that the player's team, an important component of our data, is null for many rows in seasons 2016-17 and 2017-18, we will drop those for now and focus on data from the last three seasons.
+
+```{r}
+
+# Removing both seasons
+fpl <- subset(fpl, !((season_x == "2016-17") | (season_x == "2017-18")))
+
+#Checking if it worked
+fpl |>
+  group_by(season_x) |>
+  summarise(row_count = n())
+
+#Checking the head
+head(fpl)
+```
+
+We also need to fix some data types that are not properly assigned
+
+```{r}
+
+library(stringr)
+
+fpl_clean <-
+  fpl |>
+    mutate(
+      season_x = as.integer(substr(season_x, start = 1, stop = 4)),
+      across(c(season_x, assists, bonus, bps, clean_sheets, element, fixture, goals_conceded, goals_scored, minutes, opponent_team, own_goals, penalties_saved, penalties_missed, red_cards, round, saves, selected, team_a_score, team_h_score, threat, total_points, transfers_out, transfers_in, value, yellow_cards, GW),
+      as.integer)
+    )
+
+head(fpl_clean)
+
+```
+
+## Visual Exploration
+
+### Points by Team
+
+```{r}
+
+library(ggplot2)
+
+fpl_clean |>
+  group_by(season_x, team_x) |>
+  summarise(total_points = sum(total_points), .groups = "drop") |>
+  ggplot(aes(y = reorder(team_x, total_points), x = total_points)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Total Points by Team and Season",
+       x = "Team",
+       y = "Points") +
+  theme_minimal() +
+  facet_wrap(~season_x, scales = "free_y")
+```
+
+Points by Player
+
+Points by Position
