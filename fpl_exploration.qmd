@@ -80,8 +80,8 @@ library(stringr)
 fpl_clean <-
   fpl |>
     mutate(
-      season_x = as.integer(substr(season_x, start = 1, stop = 4)),
-      across(c(season_x, assists, bonus, bps, clean_sheets, element, fixture, goals_conceded, goals_scored, minutes, opponent_team, own_goals, penalties_saved, penalties_missed, red_cards, round, saves, selected, team_a_score, team_h_score, threat, total_points, transfers_out, transfers_in, value, yellow_cards, GW),
+      season_x = substr(season_x, start = 1, stop = 4),
+      across(c(assists, bonus, bps, clean_sheets, element, fixture, goals_conceded, goals_scored, minutes, opponent_team, own_goals, penalties_saved, penalties_missed, red_cards, round, saves, selected, team_a_score, team_h_score, threat, total_points, transfers_out, transfers_in, value, yellow_cards, GW),
       as.integer)
     )
 
@@ -91,6 +91,34 @@ head(fpl_clean)
 
 ## Visual Exploration
 
+Correlation Matrix
+
+```{r}
+library(ggplot2)
+library(reshape2)
+
+# Example data (replace this with your actual dataframe)
+fpl_numeric <- 
+  fpl_clean |>
+    select_if(is.numeric) |>
+    select(assists, clean_sheets, creativity, goals_scored, ict_index, influence, minutes, saves, penalties_saved , threat, yellow_cards, red_cards, total_points)
+
+# Calculate correlation matrix
+cor_matrix <- cor(fpl_numeric)
+
+# Convert the correlation matrix to a long format
+cor_df <- melt(cor_matrix)
+
+# Plot the heatmap using ggplot2
+ggplot(cor_df, aes(Var1, Var2, fill = value)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = round(value, 2)), vjust = 1) +
+  scale_fill_gradient2(low = "#07F2F2", mid = "white", high = "#F2055C", midpoint = 0, limit = c(-1, 1), space = "Lab") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Correlation Heatmap", x = "", y = "")
+```
+
 ### Points by Team
 
 ```{r}
@@ -98,17 +126,165 @@ head(fpl_clean)
 library(ggplot2)
 
 fpl_clean |>
-  group_by(season_x, team_x) |>
+  group_by(team_x) |>
   summarise(total_points = sum(total_points), .groups = "drop") |>
   ggplot(aes(y = reorder(team_x, total_points), x = total_points)) +
-  geom_bar(stat = "identity") +
+  geom_bar(stat = "identity", fill='#00FF85', alpha = 0.7 ,color='#38003c') +
   labs(title = "Total Points by Team and Season",
        x = "Team",
        y = "Points") +
   theme_minimal() +
-  facet_wrap(~season_x, scales = "free_y")
+  theme(axis.text.y = element_text(color = "#38003c", face = "bold"), 
+        axis.text.x = element_text(color = "#38003c", face = "bold"),
+        plot.title = element_text(color = "#38003c", face = "bold"),
+        axis.title = element_text(color = "#38003c", face = "bold")) 
 ```
 
-Points by Player
+### Goals Scored by Top Forward Players
 
-Points by Position
+```{r}
+
+library(ggplot2)
+
+fpl_clean |>
+  filter(position == "FWD") |>
+  group_by(name) |>
+  summarise(total_goals_scored = sum(goals_scored), .groups = "drop") |>
+  arrange(desc(total_goals_scored)) |>  # Arrange in descending order by total_points
+  slice_head(n = 10)|>  # Select the top 10 rows
+  ggplot(aes(y = reorder(name, total_goals_scored), x = total_goals_scored)) +
+  geom_bar(stat = "identity", fill='#00FF85', alpha = 0.7 ,color='#38003c') +
+  labs(title = "Total Goals by Player",
+       x = "Player",
+       y = "Goals") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(color = "#38003c", face = "bold"), 
+        axis.text.x = element_text(color = "#38003c", face = "bold"),
+        plot.title = element_text(color = "#38003c", face = "bold"),
+        axis.title = element_text(color = "#38003c", face = "bold"))
+```
+
+### View by Season
+
+```{r}
+
+library(ggplot2)
+
+fpl_clean |>
+  filter(position == "FWD") |>
+  group_by(season_x, name) |>
+  summarise(total_goals_scored = sum(goals_scored), .groups = "drop") |>
+  arrange(desc(total_goals_scored), season_x) |>  # Arrange in descending order by goals
+  slice_head(n = 10)|>  # Select the top 10 rows
+  ggplot(aes(y = reorder(name, total_goals_scored), x = total_goals_scored, fill = season_x)) +
+  geom_bar(stat = "identity", alpha = 0.7 ,color='#38003c') +
+  labs(title = "Total Goals by Player",
+       x = "Player",
+       y = "Goals") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(color = "#38003c", face = "bold"),
+        axis.text.x = element_text(color = "#38003c", face = "bold"),
+        plot.title = element_text(color = "#38003c", face = "bold"),
+        axis.title = element_text(color = "#38003c", face = "bold"))
+
+```
+
+```{r}
+head(fpl_clean)
+```
+
+### Clean-sheets by Goalkeeper
+
+```{r}
+
+fpl_clean |>
+  filter(position == "GK") |>
+  group_by(name) |>
+  summarise(kept_clean_sheets = sum(clean_sheets), .groups = "drop") |>
+  arrange(desc(kept_clean_sheets)) |>  # Arrange in descending order by total_points
+  slice_head(n = 10)|>  # Select the top 10 rows
+  ggplot(aes(y = reorder(name, kept_clean_sheets), x = kept_clean_sheets)) +
+  geom_bar(stat = "identity", fill='#00FF85', alpha = 0.7 , color='#38003c') +
+  labs(title = "Total Cleansheets by Goalkeeper",
+       x = "Player",
+       y = "Clean Sheets") +
+  theme_minimal() +
+  theme(axis.text.y = element_text(color = "#38003c", face = "bold"), 
+        axis.text.x = element_text(color = "#38003c", face = "bold"),
+        plot.title = element_text(color = "#38003c", face = "bold"),
+        axis.title = element_text(color = "#38003c", face = "bold"))
+```
+
+Points progression per GW in 2022
+
+```{r}
+
+# Filter data for the 2023 season
+filtered_data <- fpl_clean |>
+  filter(season_x == "2022") |>
+  group_by(GW, team_x) |>
+  summarise(total_points = sum(total_points)) |>
+  arrange(desc(total_points)) |>  # Arrange in descending order by total_points
+  slice_head(n = 10)  # Select the top 10 rows
+
+# Create a line plot
+ggplot(filtered_data, aes(x = GW, y = total_points, color = team_x)) +
+  geom_line() +
+  labs(title = "Total Points per Gameweek in 2023 Season",
+       x = "Gameweek",
+       y = "Total Points",
+       color = "Team") +
+  theme_minimal()
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+
+# Example data (replace this with your actual dataframe)
+# Assuming your data frame is called 'fpl_clean'
+# Replace the following with your actual column names
+
+
+# Filter data for forwards (FWD)
+fwd_data <- fpl_clean %>%
+  filter(position == "FWD") %>%
+  group_by(season_x, name) %>%
+  summarise(total_goals_scored = sum(goals_scored), .groups = "drop") %>%
+  arrange(season_x, desc(total_goals_scored)) %>%
+  group_by(season_x) %>%
+  slice_head(n = 5)
+
+# Create a list of ggplots for each season
+plots_list <- lapply(unique(fwd_data$season_x), function(season) {
+  season_data <- fwd_data %>%
+    filter(season_x == season)
+  
+  ggplot(season_data, aes(y = reorder(name, total_goals_scored), x = total_goals_scored)) +
+    geom_bar(stat = "identity", fill = '#00FF85', alpha = 0.7, color = '#38003c', width = 0.6) +
+    geom_text(
+      aes(0, y = name, label = name),
+      hjust = 0,
+      nudge_x = 0.3,
+      colour = "#38003c",
+      size = 5
+    ) +
+    labs(title = paste("Top 5 Goalscorers - Season", season),
+         x = "Goals",
+         y = "Player") +
+    theme_minimal() +
+    theme(axis.text.y = element_blank(),
+          axis.text.x = element_text(color = "#38003c", face = "bold"),
+          plot.title = element_text(color = "#38003c", face = "bold"),
+          axis.title = element_text(color = "#38003c", face = "bold"),
+          panel.background = element_rect(fill = "white"),
+          panel.grid.major.x = element_line(color = "#38003c", linewidth = 0.2),
+          panel.grid.major.y = element_blank()
+          )
+})
+
+# Arrange the plots using grid.arrange
+grid.arrange(grobs = plots_list, nrow = 3)
+
+```
